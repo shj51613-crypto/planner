@@ -6,228 +6,209 @@
 <title>캘린더</title>
 
 <style>
-  body {
-    font-family: Arial;
-    margin: 20px;
-    user-select: none;
-  }
+body { font-family: Arial; margin: 20px; user-select: none; }
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    max-width: 420px;
-    margin: 0 auto 10px;
-    align-items: center;
-  }
+.header {
+  display:flex; justify-content:space-between;
+  max-width:420px; margin:auto;
+}
 
-  button {
-    cursor: pointer;
-    padding: 5px 10px;
-  }
+.calendar {
+  display:grid;
+  grid-template-columns: repeat(7,1fr);
+  max-width:420px;
+  margin:auto;
+  gap:2px;
+}
 
-  .calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    max-width: 420px;
-    margin: auto;
-    gap: 2px;
-  }
+.day-name {
+  text-align:center;
+  background:#f3f3f3;
+  padding:5px;
+  font-weight:bold;
+}
 
-  .day-name {
-    text-align: center;
-    font-weight: bold;
-    background: #f3f3f3;
-    padding: 5px 0;
-  }
+.cell {
+  min-height:70px;
+  border:1px solid #ddd;
+  padding:4px;
+  cursor:pointer;
+}
 
-  .cell {
-    min-height: 70px;
-    border: 1px solid #ddd;
-    padding: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
+.date { font-size:11px; font-weight:bold; }
 
-  .date {
-    font-weight: bold;
-    font-size: 11px;
-  }
+.event {
+  font-size:10px;
+  color:#fff;
+  margin-top:2px;
+  padding:2px;
+  border-radius:3px;
+}
 
-  .event {
-    margin-top: 2px;
-    padding: 2px 3px;
-    font-size: 10px;
-    border-radius: 3px;
-    color: white;
-  }
+.sun .date { color:red; }
+.sat .date { color:blue; }
 
-  .sun .date { color: red; }
-  .sat .date { color: blue; }
+.selected {
+  background:#d0ebff !important;
+}
 
-  .single-day {
-    background: #ffeaa7 !important;
-  }
-
-  /* 드래그 선택 표시 */
-  .selected {
-    outline: 2px solid #339af0;
-  }
+.single-day {
+  background:#ffeaa7 !important;
+}
 </style>
 </head>
 
 <body>
 
 <div class="header">
-  <button onclick="prevMonth()">◀</button>
-  <h3 id="monthTitle"></h3>
-  <button onclick="nextMonth()">▶</button>
+  <button onclick="prev()">◀</button>
+  <h3 id="title"></h3>
+  <button onclick="next()">▶</button>
 </div>
 
-<div class="calendar" id="calendar"></div>
+<div class="calendar" id="cal"></div>
 
 <script>
-let today = new Date();
-let currentYear = today.getFullYear();
-let currentMonth = today.getMonth();
+let y = new Date().getFullYear();
+let m = new Date().getMonth();
 
 let events = [
-  { title: "회의", start: "2026-06-10", end: "2026-06-10", color: "#ff6b6b" }
+  { title:"회의", start:"2026-06-10", end:"2026-06-10", color:"#ff6b6b" }
 ];
 
-let isDragging = false;
 let dragStart = null;
 let dragEnd = null;
+let isDragging = false;
 
-const calendar = document.getElementById("calendar");
-const monthTitle = document.getElementById("monthTitle");
+const cal = document.getElementById("cal");
+const title = document.getElementById("title");
 
-function renderCalendar(year, month) {
-  calendar.innerHTML = "";
+function toDateStr(year, month, day){
+  return `${year}-${String(month+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
 
-  const firstDay = new Date(year, month, 1).getDay();
-  const lastDate = new Date(year, month + 1, 0).getDate();
+function render(){
+  cal.innerHTML = "";
 
-  monthTitle.innerText = `${year}년 ${month + 1}월`;
+  const first = new Date(y,m,1).getDay();
+  const last = new Date(y,m+1,0).getDate();
 
-  const days = ["일","월","화","수","목","금","토"];
+  title.innerText = `${y}년 ${m+1}월`;
 
-  days.forEach((d, i) => {
-    const el = document.createElement("div");
-    el.className = "day-name";
-    el.innerText = d;
-    calendar.appendChild(el);
+  ["일","월","화","수","목","금","토"].forEach((d,i)=>{
+    const el=document.createElement("div");
+    el.className="day-name";
+    el.innerText=d;
+    cal.appendChild(el);
   });
 
-  for (let i = 0; i < firstDay; i++) {
-    calendar.appendChild(document.createElement("div"));
-  }
+  for(let i=0;i<first;i++) cal.appendChild(document.createElement("div"));
 
-  for (let d = 1; d <= lastDate; d++) {
-    const cell = document.createElement("div");
-    cell.className = "cell";
+  for(let d=1; d<=last; d++){
+    const cell=document.createElement("div");
+    cell.className="cell";
 
-    const weekday = new Date(year, month, d).getDay();
-    if (weekday === 0) cell.classList.add("sun");
-    if (weekday === 6) cell.classList.add("sat");
+    const weekday=new Date(y,m,d).getDay();
+    if(weekday===0) cell.classList.add("sun");
+    if(weekday===6) cell.classList.add("sat");
 
-    const fullDate =
-      `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const dateStr=toDateStr(y,m,d);
+    const index=d;
 
-    const dateEl = document.createElement("div");
-    dateEl.className = "date";
-    dateEl.innerText = d;
+    const dateEl=document.createElement("div");
+    dateEl.className="date";
+    dateEl.innerText=d;
     cell.appendChild(dateEl);
 
-    let dayEvents = events.filter(ev =>
-      fullDate >= ev.start && fullDate <= ev.end
-    );
+    let dayEvents = events.filter(e => dateStr>=e.start && dateStr<=e.end);
 
-    if (dayEvents.length === 1 && dayEvents[0].start === dayEvents[0].end) {
+    if(dayEvents.length===1 && dayEvents[0].start===dayEvents[0].end){
       cell.classList.add("single-day");
     }
 
-    dayEvents.forEach(ev => {
-      const evEl = document.createElement("div");
-      evEl.className = "event";
-      evEl.innerText = ev.title;
-      evEl.style.background = ev.color;
-      cell.appendChild(evEl);
+    dayEvents.forEach(ev=>{
+      const e=document.createElement("div");
+      e.className="event";
+      e.innerText=ev.title;
+      e.style.background=ev.color;
+      cell.appendChild(e);
     });
 
     // ⭐ 드래그 시작
     cell.onmousedown = () => {
       isDragging = true;
-      dragStart = fullDate;
-      dragEnd = fullDate;
-      renderCalendar(currentYear, currentMonth);
+      dragStart = index;
+      dragEnd = index;
+      render();
     };
 
     // ⭐ 드래그 이동
     cell.onmouseenter = () => {
-      if (!isDragging) return;
-      dragEnd = fullDate;
-      renderCalendar(currentYear, currentMonth);
+      if(!isDragging) return;
+      dragEnd = index;
+      render();
     };
 
-    // ⭐ 드래그 끝
+    // ⭐ 드래그 종료
     cell.onmouseup = () => {
-      if (!isDragging) return;
+      if(!isDragging) return;
       isDragging = false;
 
-      const title = prompt(`${dragStart} ~ ${dragEnd} 일정`);
-      if (!title) return;
+      const s = Math.min(dragStart, dragEnd);
+      const e = Math.max(dragStart, dragEnd);
 
-      const [start, end] =
-        dragStart < dragEnd ? [dragStart, dragEnd] : [dragEnd, dragStart];
+      const startDate = toDateStr(y,m,s);
+      const endDate = toDateStr(y,m,e);
 
-      events.push({
-        title,
-        start,
-        end,
-        color: getRandomColor()
-      });
+      const titleInput = prompt(`${startDate} ~ ${endDate} 일정`);
+      if(titleInput){
+        events.push({
+          title:titleInput,
+          start:startDate,
+          end:endDate,
+          color:"#4dabf7"
+        });
+      }
 
-      dragStart = null;
-      dragEnd = null;
-
-      renderCalendar(currentYear, currentMonth);
+      dragStart=null;
+      dragEnd=null;
+      render();
     };
 
-    // 선택 표시
-    if (dragStart && dragEnd &&
-        fullDate >= Math.min(dragStart, dragEnd) &&
-        fullDate <= Math.max(dragStart, dragEnd)) {
-      cell.classList.add("selected");
+    // ⭐ 선택 표시 (숫자 기반 안정화)
+    if(dragStart!==null && dragEnd!==null){
+      const min=Math.min(dragStart,dragEnd);
+      const max=Math.max(dragStart,dragEnd);
+      if(index>=min && index<=max){
+        cell.classList.add("selected");
+      }
     }
 
-    calendar.appendChild(cell);
+    // ⭐ 클릭(단일 일정 추가)
+    cell.addEventListener("click", (e)=>{
+      if(isDragging) return; // 드래그랑 충돌 방지
+
+      const t = prompt(`${dateStr} 일정 추가`);
+      if(!t) return;
+
+      events.push({
+        title:t,
+        start:dateStr,
+        end:dateStr,
+        color:"#ff6b6b"
+      });
+
+      render();
+    });
+
+    cal.appendChild(cell);
   }
 }
 
-function getRandomColor() {
-  const colors = ["#ff6b6b","#4dabf7","#51cf66","#845ef7","#ffa94d"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+function prev(){ m--; if(m<0){m=11;y--;} render(); }
+function next(){ m++; if(m>11){m=0;y++;} render(); }
 
-function prevMonth() {
-  currentMonth--;
-  if (currentMonth < 0) {
-    currentMonth = 11;
-    currentYear--;
-  }
-  renderCalendar(currentYear, currentMonth);
-}
-
-function nextMonth() {
-  currentMonth++;
-  if (currentMonth > 11) {
-    currentMonth = 0;
-    currentYear++;
-  }
-  renderCalendar(currentYear, currentMonth);
-}
-
-renderCalendar(currentYear, currentMonth);
+render();
 </script>
 
 </body>
