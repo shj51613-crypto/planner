@@ -6,180 +6,165 @@
 <title>캘린더</title>
 
 <style>
-  body {
-    font-family: Arial;
-    margin: 20px;
-  }
+body { font-family: Arial; margin:20px; user-select:none; }
 
-  .header {
-    display: flex;
-    justify-content: space-between;
-    max-width: 420px;
-    margin: 0 auto 10px;
-  }
+.header {
+  display:flex;
+  justify-content:space-between;
+  max-width:420px;
+  margin:auto;
+}
 
-  button {
-    cursor: pointer;
-    padding: 5px 10px;
-  }
+.calendar {
+  display:grid;
+  grid-template-columns:repeat(7,1fr);
+  max-width:420px;
+  margin:auto;
+  gap:2px;
+}
 
-  .calendar {
-    display: grid;
-    grid-template-columns: repeat(7, 1fr);
-    max-width: 420px;
-    margin: auto;
-    gap: 2px;
-  }
+.day-name {
+  text-align:center;
+  background:#f3f3f3;
+  padding:5px;
+  font-weight:bold;
+}
 
-  .day-name {
-    text-align: center;
-    font-weight: bold;
-    background: #f3f3f3;
-    padding: 5px 0;
-  }
+.cell {
+  min-height:70px;
+  border:1px solid #ddd;
+  padding:4px;
+  cursor:pointer;
+}
 
-  .cell {
-    min-height: 70px;
-    border: 1px solid #ddd;
-    padding: 4px;
-    font-size: 12px;
-    cursor: pointer;
-  }
+.date { font-size:11px; font-weight:bold; }
 
-  .date {
-    font-weight: bold;
-    font-size: 11px;
-  }
+.event {
+  font-size:10px;
+  color:#fff;
+  margin-top:2px;
+  padding:2px;
+  border-radius:3px;
+}
 
-  .event {
-    margin-top: 2px;
-    padding: 2px 3px;
-    font-size: 10px;
-    border-radius: 3px;
-    color: white;
-  }
+.sun .date { color:red; }
+.sat .date { color:blue; }
 
-  .single-day {
-    background: #ffeaa7 !important;
-  }
-
+.selected { background:#d0ebff !important; }
+.single-day { background:#ffeaa7 !important; }
 </style>
 </head>
 
 <body>
 
 <div class="header">
-  <button onclick="prevMonth()">◀</button>
-  <h3 id="monthTitle"></h3>
-  <button onclick="nextMonth()">▶</button>
+  <button onclick="prev()">◀</button>
+  <h3 id="title"></h3>
+  <button onclick="next()">▶</button>
 </div>
 
-<div class="calendar" id="calendar"></div>
+<div class="calendar" id="cal"></div>
 
 <script>
-let today = new Date();
-let currentYear = today.getFullYear();
-let currentMonth = today.getMonth();
+let y=new Date().getFullYear();
+let m=new Date().getMonth();
 
-let events = [
-  { title: "회의", date: "2026-06-10", color: "#ff6b6b" },
-  { title: "운동", date: "2026-06-10", color: "#4dabf7" }
+let events=[
+  { title:"회의", start:"2026-06-10", end:"2026-06-10", color:"#ff6b6b" }
 ];
 
-const calendar = document.getElementById("calendar");
-const monthTitle = document.getElementById("monthTitle");
+let dragStart=null;
+let dragEnd=null;
+let isDragging=false;
 
-function renderCalendar(year, month) {
-  calendar.innerHTML = "";
+const cal=document.getElementById("cal");
+const title=document.getElementById("title");
 
-  const firstDay = new Date(year, month, 1).getDay();
-  const lastDate = new Date(year, month + 1, 0).getDate();
+function dateStr(day){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+}
 
-  monthTitle.innerText = `${year}년 ${month + 1}월`;
+function render(){
+  cal.innerHTML="";
 
-  const days = ["일","월","화","수","목","금","토"];
-  days.forEach(d => {
-    const el = document.createElement("div");
-    el.className = "day-name";
-    el.innerText = d;
-    calendar.appendChild(el);
+  const first=new Date(y,m,1).getDay();
+  const last=new Date(y,m+1,0).getDate();
+
+  title.innerText=`${y}년 ${m+1}월`;
+
+  ["일","월","화","수","목","금","토"].forEach(d=>{
+    const el=document.createElement("div");
+    el.className="day-name";
+    el.innerText=d;
+    cal.appendChild(el);
   });
 
-  for (let i = 0; i < firstDay; i++) {
-    calendar.appendChild(document.createElement("div"));
-  }
+  for(let i=0;i<first;i++) cal.appendChild(document.createElement("div"));
 
-  for (let d = 1; d <= lastDate; d++) {
-    const cell = document.createElement("div");
-    cell.className = "cell";
+  for(let d=1; d<=last; d++){
+    const cell=document.createElement("div");
+    cell.className="cell";
 
-    const fullDate =
-      `${year}-${String(month+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+    const weekday=new Date(y,m,d).getDay();
+    if(weekday===0) cell.classList.add("sun");
+    if(weekday===6) cell.classList.add("sat");
 
-    const dateEl = document.createElement("div");
-    dateEl.className = "date";
-    dateEl.innerText = d;
+    const ds=dateStr(d);
 
+    const dateEl=document.createElement("div");
+    dateEl.className="date";
+    dateEl.innerText=d;
     cell.appendChild(dateEl);
 
-    let dayEvents = events.filter(e => e.date === fullDate);
+    let dayEvents=events.filter(e=>ds>=e.start && ds<=e.end);
 
-    if (dayEvents.length === 1) {
+    if(dayEvents.length===1 && dayEvents[0].start===dayEvents[0].end){
       cell.classList.add("single-day");
     }
 
-    dayEvents.forEach(ev => {
-      const evEl = document.createElement("div");
-      evEl.className = "event";
-      evEl.innerText = ev.title;
-      evEl.style.background = ev.color;
-      cell.appendChild(evEl);
+    dayEvents.forEach(ev=>{
+      const e=document.createElement("div");
+      e.className="event";
+      e.innerText=ev.title;
+      e.style.background=ev.color;
+
+      // ⭐ 삭제 기능 (핵심)
+      e.onclick=(event)=>{
+        event.stopPropagation(); // cell 클릭 막기
+
+        const ok=confirm(`"${ev.title}" 삭제할까?`);
+        if(!ok) return;
+
+        events=events.filter(x=>x!==ev);
+        render();
+      };
+
+      cell.appendChild(e);
     });
 
-    // ⭐ 핵심: 클릭해서 일정 추가
-    cell.onclick = () => {
-      const title = prompt(`${fullDate} 일정 추가`);
-      if (!title) return;
-
-      const color = getRandomColor();
+    // ⭐ 클릭 추가
+    cell.onclick=()=>{
+      const t=prompt(`${ds} 일정 추가`);
+      if(!t) return;
 
       events.push({
-        title,
-        date: fullDate,
-        color
+        title:t,
+        start:ds,
+        end:ds,
+        color:"#4dabf7"
       });
 
-      renderCalendar(currentYear, currentMonth);
+      render();
     };
 
-    calendar.appendChild(cell);
+    cal.appendChild(cell);
   }
 }
 
-function getRandomColor() {
-  const colors = ["#ff6b6b","#4dabf7","#51cf66","#845ef7","#ffa94d"];
-  return colors[Math.floor(Math.random() * colors.length)];
-}
+function prev(){ m--; if(m<0){m=11;y--;} render(); }
+function next(){ m++; if(m>11){m=0;y++;} render(); }
 
-function prevMonth() {
-  currentMonth--;
-  if (currentMonth < 0) {
-    currentMonth = 11;
-    currentYear--;
-  }
-  renderCalendar(currentYear, currentMonth);
-}
-
-function nextMonth() {
-  currentMonth++;
-  if (currentMonth > 11) {
-    currentMonth = 0;
-    currentYear++;
-  }
-  renderCalendar(currentYear, currentMonth);
-}
-
-renderCalendar(currentYear, currentMonth);
+render();
 </script>
 
 </body>
