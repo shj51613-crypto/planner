@@ -47,9 +47,6 @@ body { font-family: Arial; margin:20px; user-select:none; }
   border-radius:3px;
 }
 
-.sun .date { color:red; }
-.sat .date { color:blue; }
-
 /* ⭐ 모달 */
 #modal {
   display:none;
@@ -61,16 +58,16 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
 .modal-box {
   background:white;
-  width:260px;
+  width:300px;
   padding:15px;
   border-radius:8px;
   margin:120px auto;
 }
 
-.modal-box input {
+.modal-box input, .modal-box select {
   width:100%;
   padding:6px;
-  margin-bottom:10px;
+  margin-bottom:8px;
 }
 
 .modal-box button {
@@ -78,6 +75,13 @@ body { font-family: Arial; margin:20px; user-select:none; }
   padding:6px;
   margin-top:5px;
   cursor:pointer;
+}
+
+.color-box {
+  display:flex;
+  align-items:center;
+  gap:8px;
+  margin-bottom:8px;
 }
 </style>
 </head>
@@ -92,13 +96,23 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
 <div class="calendar" id="cal"></div>
 
-<!-- ⭐ 수정 모달 -->
+<!-- ⭐ 모달 -->
 <div id="modal">
   <div class="modal-box">
-    <input id="editTitle" />
-    <button onclick="saveEdit()">저장</button>
-    <button onclick="deleteEvent()">삭제</button>
+
+    <input id="titleInput" placeholder="제목"/>
+
+    <div class="color-box">
+      <span>카테고리 색</span>
+      <input type="color" id="colorInput" />
+    </div>
+
+    <input id="categoryInput" placeholder="카테고리 (예: 운동)"/>
+
+    <button onclick="save()">저장</button>
+    <button onclick="remove()">삭제</button>
     <button onclick="closeModal()">취소</button>
+
   </div>
 </div>
 
@@ -107,16 +121,19 @@ let y=new Date().getFullYear();
 let m=new Date().getMonth();
 
 let events=[
-  { title:"회의", start:"2026-06-10", end:"2026-06-10", color:"#ff6b6b" }
+  { title:"회의", start:"2026-06-10", end:"2026-06-10", category:"일", color:"#ff6b6b" }
 ];
 
-let selectedEvent=null;
+let selected=null;
+let selectedDate=null;
 
 const cal=document.getElementById("cal");
 const title=document.getElementById("title");
 
 const modal=document.getElementById("modal");
-const editTitle=document.getElementById("editTitle");
+const titleInput=document.getElementById("titleInput");
+const categoryInput=document.getElementById("categoryInput");
+const colorInput=document.getElementById("colorInput");
 
 function dateStr(d){
   return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
@@ -155,31 +172,19 @@ function render(){
     dayEvents.forEach(ev=>{
       const e=document.createElement("div");
       e.className="event";
-      e.innerText=ev.title;
+      e.innerText=`${ev.title} (${ev.category})`;
       e.style.background=ev.color;
 
-      // ⭐ 수정 모달 열기
       e.onclick=(event)=>{
         event.stopPropagation();
-        openModal(ev);
+        openModal(ev, ds);
       };
 
       cell.appendChild(e);
     });
 
-    // ⭐ 클릭 = 일정 추가
     cell.onclick=()=>{
-      const t=prompt(`${ds} 일정 추가`);
-      if(!t) return;
-
-      events.push({
-        title:t,
-        start:ds,
-        end:ds,
-        color:"#4dabf7"
-      });
-
-      render();
+      openModal(null, ds);
     };
 
     cal.appendChild(cell);
@@ -187,33 +192,62 @@ function render(){
 }
 
 // ⭐ 모달 열기
-function openModal(ev){
-  selectedEvent=ev;
-  editTitle.value=ev.title;
+function openModal(ev, ds){
+  selected=ev;
+  selectedDate=ds;
+
+  if(ev){
+    titleInput.value=ev.title;
+    categoryInput.value=ev.category;
+    colorInput.value=ev.color;
+  } else {
+    titleInput.value="";
+    categoryInput.value="";
+    colorInput.value="#4dabf7";
+  }
+
   modal.style.display="block";
 }
 
 // ⭐ 저장
-function saveEdit(){
-  if(!selectedEvent) return;
+function save(){
+  const t=titleInput.value;
+  const c=categoryInput.value;
+  const col=colorInput.value;
 
-  selectedEvent.title=editTitle.value;
+  if(!t) return;
+
+  if(selected){
+    selected.title=t;
+    selected.category=c;
+    selected.color=col;
+  } else {
+    events.push({
+      title:t,
+      start:selectedDate,
+      end:selectedDate,
+      category:c,
+      color:col
+    });
+  }
+
   closeModal();
   render();
 }
 
 // ⭐ 삭제
-function deleteEvent(){
-  events=events.filter(e=>e!==selectedEvent);
-  selectedEvent=null;
+function remove(){
+  if(!selected) return;
+
+  events=events.filter(e=>e!==selected);
   closeModal();
   render();
 }
 
-// ⭐ 닫기
 function closeModal(){
   modal.style.display="none";
-  selectedEvent=null;
+  selected=null;
+  selectedDate=null;
 }
 
 function prev(){ m--; if(m<0){m=11;y--;} render(); }
