@@ -9,6 +9,7 @@
   body {
     font-family: Arial;
     margin: 20px;
+    user-select: none;
   }
 
   .header {
@@ -60,27 +61,16 @@
     color: white;
   }
 
-  /* ⭐ 요일 색상 */
-  .sun {
-    color: red !important;
-  }
+  .sun .date { color: red; }
+  .sat .date { color: blue; }
 
-  .sat {
-    color: blue !important;
-  }
-
-  /* ⭐ 날짜 셀에서 요일 강조 */
-  .cell.sun .date {
-    color: red;
-  }
-
-  .cell.sat .date {
-    color: blue;
-  }
-
-  /* ⭐ 단일 일정 강조 */
   .single-day {
     background: #ffeaa7 !important;
+  }
+
+  /* 드래그 선택 표시 */
+  .selected {
+    outline: 2px solid #339af0;
   }
 </style>
 </head>
@@ -101,9 +91,12 @@ let currentYear = today.getFullYear();
 let currentMonth = today.getMonth();
 
 let events = [
-  { title: "회의", date: "2026-06-10", color: "#ff6b6b" },
-  { title: "운동", date: "2026-06-10", color: "#4dabf7" }
+  { title: "회의", start: "2026-06-10", end: "2026-06-10", color: "#ff6b6b" }
 ];
+
+let isDragging = false;
+let dragStart = null;
+let dragEnd = null;
 
 const calendar = document.getElementById("calendar");
 const monthTitle = document.getElementById("monthTitle");
@@ -116,32 +109,24 @@ function renderCalendar(year, month) {
 
   monthTitle.innerText = `${year}년 ${month + 1}월`;
 
-  // ⭐ 요일 헤더
   const days = ["일","월","화","수","목","금","토"];
 
   days.forEach((d, i) => {
     const el = document.createElement("div");
     el.className = "day-name";
     el.innerText = d;
-
-    if (i === 0) el.classList.add("sun");
-    if (i === 6) el.classList.add("sat");
-
     calendar.appendChild(el);
   });
 
-  // 빈칸
   for (let i = 0; i < firstDay; i++) {
     calendar.appendChild(document.createElement("div"));
   }
 
-  // 날짜 생성
   for (let d = 1; d <= lastDate; d++) {
     const cell = document.createElement("div");
     cell.className = "cell";
 
     const weekday = new Date(year, month, d).getDay();
-
     if (weekday === 0) cell.classList.add("sun");
     if (weekday === 6) cell.classList.add("sat");
 
@@ -151,12 +136,13 @@ function renderCalendar(year, month) {
     const dateEl = document.createElement("div");
     dateEl.className = "date";
     dateEl.innerText = d;
-
     cell.appendChild(dateEl);
 
-    let dayEvents = events.filter(e => e.date === fullDate);
+    let dayEvents = events.filter(ev =>
+      fullDate >= ev.start && fullDate <= ev.end
+    );
 
-    if (dayEvents.length === 1) {
+    if (dayEvents.length === 1 && dayEvents[0].start === dayEvents[0].end) {
       cell.classList.add("single-day");
     }
 
@@ -168,19 +154,51 @@ function renderCalendar(year, month) {
       cell.appendChild(evEl);
     });
 
-    // ⭐ 클릭해서 일정 추가
-    cell.onclick = () => {
-      const title = prompt(`${fullDate} 일정 추가`);
+    // ⭐ 드래그 시작
+    cell.onmousedown = () => {
+      isDragging = true;
+      dragStart = fullDate;
+      dragEnd = fullDate;
+      renderCalendar(currentYear, currentMonth);
+    };
+
+    // ⭐ 드래그 이동
+    cell.onmouseenter = () => {
+      if (!isDragging) return;
+      dragEnd = fullDate;
+      renderCalendar(currentYear, currentMonth);
+    };
+
+    // ⭐ 드래그 끝
+    cell.onmouseup = () => {
+      if (!isDragging) return;
+      isDragging = false;
+
+      const title = prompt(`${dragStart} ~ ${dragEnd} 일정`);
       if (!title) return;
+
+      const [start, end] =
+        dragStart < dragEnd ? [dragStart, dragEnd] : [dragEnd, dragStart];
 
       events.push({
         title,
-        date: fullDate,
+        start,
+        end,
         color: getRandomColor()
       });
 
+      dragStart = null;
+      dragEnd = null;
+
       renderCalendar(currentYear, currentMonth);
     };
+
+    // 선택 표시
+    if (dragStart && dragEnd &&
+        fullDate >= Math.min(dragStart, dragEnd) &&
+        fullDate <= Math.max(dragStart, dragEnd)) {
+      cell.classList.add("selected");
+    }
 
     calendar.appendChild(cell);
   }
