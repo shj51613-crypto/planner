@@ -1,81 +1,72 @@
 <!DOCTYPE html>
 <html lang="ko">
 <head>
-<meta charset="UTF-8">
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
-
-<title>Main Planner</title>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>캘린더</title>
 
 <style>
+  body {
+    font-family: Arial, sans-serif;
+    margin: 20px;
+  }
 
-*{
-    box-sizing:border-box;
-    margin:0;
-    padding:0;
-}
+  .header {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    max-width: 420px;
+    margin: 0 auto 10px;
+  }
 
-body{
-    font-family:-apple-system,BlinkMacSystemFont,sans-serif;
-    background:#ffffff;
-    padding:20px;
-}
+  button {
+    cursor: pointer;
+    padding: 5px 10px;
+  }
 
-.header{
-    text-align:center;
-    margin-bottom:20px;
-}
+  .calendar {
+    display: grid;
+    grid-template-columns: repeat(7, 1fr);
+    max-width: 420px;
+    margin: 0 auto;
+    gap: 2px;
+  }
 
-.month{
-    font-size:24px;
-    font-weight:700;
-}
+  .day-name {
+    font-weight: bold;
+    text-align: center;
+    padding: 5px 0;
+    background: #f0f0f0;
+  }
 
-.weekdays{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    margin-bottom:10px;
-}
+  .cell {
+    min-height: 60px;
+    border: 1px solid #ddd;
+    padding: 4px;
+    font-size: 12px;
+    position: relative;
+  }
 
-.weekdays div{
-    text-align:center;
-    font-weight:600;
-    padding:10px 0;
-}
+  .date {
+    font-weight: bold;
+    font-size: 11px;
+  }
 
-.calendar{
-    display:grid;
-    grid-template-columns:repeat(7,1fr);
-    gap:1px;
-    background:#ddd;
-}
+  .event {
+    margin-top: 2px;
+    padding: 2px 3px;
+    font-size: 10px;
+    border-radius: 3px;
+    color: white;
+    overflow: hidden;
+    white-space: nowrap;
+    text-overflow: ellipsis;
+  }
 
-.day{
-    background:white;
-    min-height:120px;
-    padding:6px;
-}
-
-.date{
-    font-size:14px;
-    font-weight:700;
-    margin-bottom:6px;
-}
-
-.event{
-    font-size:12px;
-    margin-bottom:4px;
-}
-
-.task{
-    font-size:12px;
-    margin-bottom:4px;
-}
-
-.range{
-    font-size:12px;
-    color:#d26c6c;
-    font-weight:600;
-}
+  /* 1일짜리 일정 강조 */
+  .single-day {
+    background: #ffe58a !important;
+  }
 
 </style>
 </head>
@@ -83,156 +74,99 @@ body{
 <body>
 
 <div class="header">
-    <div class="month">2026년 6월</div>
+  <button onclick="prevMonth()">◀</button>
+  <h3 id="monthTitle"></h3>
+  <button onclick="nextMonth()">▶</button>
 </div>
 
-<div class="weekdays">
-    <div>일</div>
-    <div>월</div>
-    <div>화</div>
-    <div>수</div>
-    <div>목</div>
-    <div>금</div>
-    <div>토</div>
-</div>
+<div class="calendar" id="calendar"></div>
 
-<div class="calendar">
+<script>
+const calendar = document.getElementById("calendar");
+const monthTitle = document.getElementById("monthTitle");
 
-    <div class="day"></div>
+let today = new Date();
+let currentYear = today.getFullYear();
+let currentMonth = today.getMonth();
 
-    <div class="day">
-        <div class="date">1</div>
-    </div>
+// 예시 일정 데이터
+let events = [
+  { title: "회의", date: "2026-06-10", color: "#ff6b6b" },
+  { title: "운동", date: "2026-06-10", color: "#4dabf7" },
+  { title: "하루 일정", date: "2026-06-15", dateEnd: "2026-06-15", color: "#51cf66" } // 단일 일정
+];
 
-    <div class="day">
-        <div class="date">2</div>
-    </div>
+function renderCalendar(year, month) {
+  calendar.innerHTML = "";
 
-    <div class="day">
-        <div class="date">3</div>
-    </div>
+  const firstDay = new Date(year, month, 1).getDay();
+  const lastDate = new Date(year, month + 1, 0).getDate();
 
-    <div class="day">
-        <div class="date">4</div>
-    </div>
+  monthTitle.innerText = `${year}년 ${month + 1}월`;
 
-    <div class="day">
-        <div class="date">5</div>
-    </div>
+  const days = ["일", "월", "화", "수", "목", "금", "토"];
+  days.forEach(d => {
+    const el = document.createElement("div");
+    el.className = "day-name";
+    el.innerText = d;
+    calendar.appendChild(el);
+  });
 
-    <div class="day">
-        <div class="date">6</div>
-    </div>
+  for (let i = 0; i < firstDay; i++) {
+    calendar.appendChild(document.createElement("div"));
+  }
 
-    <div class="day">
-        <div class="date">7</div>
-    </div>
+  for (let date = 1; date <= lastDate; date++) {
+    const cell = document.createElement("div");
+    cell.className = "cell";
 
-    <div class="day">
-        <div class="date">8</div>
-    </div>
+    const fullDate = `${year}-${String(month+1).padStart(2,'0')}-${String(date).padStart(2,'0')}`;
 
-    <div class="day">
-        <div class="date">9</div>
-    </div>
+    const dateEl = document.createElement("div");
+    dateEl.className = "date";
+    dateEl.innerText = date;
 
-    <div class="day">
-        <div class="date">10</div>
-        <div class="event">고정지출</div>
-    </div>
+    cell.appendChild(dateEl);
 
-    <div class="day">
-        <div class="date">11</div>
-    </div>
+    let dayEvents = events.filter(e => e.date === fullDate);
 
-    <div class="day">
-        <div class="date">12</div>
-    </div>
+    // 단일 일정 여부 체크 (1일짜리)
+    if (dayEvents.length === 1 && !dayEvents[0].dateEnd) {
+      cell.classList.add("single-day");
+    }
 
-    <div class="day">
-        <div class="date">13</div>
-    </div>
+    dayEvents.forEach(ev => {
+      const evEl = document.createElement("div");
+      evEl.className = "event";
+      evEl.innerText = ev.title;
+      evEl.style.background = ev.color;
+      cell.appendChild(evEl);
+    });
 
-    <div class="day">
-        <div class="date">14</div>
-    </div>
+    calendar.appendChild(cell);
+  }
+}
 
-    <div class="day">
-        <div class="date">15</div>
+function prevMonth() {
+  currentMonth--;
+  if (currentMonth < 0) {
+    currentMonth = 11;
+    currentYear--;
+  }
+  renderCalendar(currentYear, currentMonth);
+}
 
-        <div class="task">
-            ☐ 메가젠
-        </div>
+function nextMonth() {
+  currentMonth++;
+  if (currentMonth > 11) {
+    currentMonth = 0;
+    currentYear++;
+  }
+  renderCalendar(currentYear, currentMonth);
+}
 
-        <div class="task">
-            ☑ 자동차
-        </div>
-    </div>
-
-    <div class="day">
-        <div class="date">16</div>
-    </div>
-
-    <div class="day">
-        <div class="date">17</div>
-    </div>
-
-    <div class="day">
-        <div class="date">18</div>
-    </div>
-
-    <div class="day">
-        <div class="date">19</div>
-    </div>
-
-    <div class="day">
-        <div class="date">20</div>
-    </div>
-
-    <div class="day">
-        <div class="date">21</div>
-    </div>
-
-    <div class="day">
-        <div class="date">22</div>
-    </div>
-
-    <div class="day">
-        <div class="date">23</div>
-        <div class="range">← 여행</div>
-    </div>
-
-    <div class="day">
-        <div class="date">24</div>
-        <div class="range">────</div>
-    </div>
-
-    <div class="day">
-        <div class="date">25</div>
-        <div class="range">────→</div>
-    </div>
-
-    <div class="day">
-        <div class="date">26</div>
-    </div>
-
-    <div class="day">
-        <div class="date">27</div>
-    </div>
-
-    <div class="day">
-        <div class="date">28</div>
-    </div>
-
-    <div class="day">
-        <div class="date">29</div>
-    </div>
-
-    <div class="day">
-        <div class="date">30</div>
-    </div>
-
-</div>
+renderCalendar(currentYear, currentMonth);
+</script>
 
 </body>
 </html>
