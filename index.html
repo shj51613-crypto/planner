@@ -3,23 +3,28 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>캘린더 + 타임트래커 변환</title>
+<title>캘린더 + 타임트래커 (분리형)</title>
 
 <style>
 body { font-family: Arial; margin:20px; }
 
-.layout {
+.nav {
   display:flex;
-  gap:20px;
-  max-width:900px;
-  margin:auto;
+  gap:10px;
+  margin-bottom:15px;
 }
 
+button { cursor:pointer; padding:6px 10px; }
+
+.page { display:none; }
+.active { display:block; }
+
+/* 캘린더 */
 .calendar {
-  flex:1;
   display:grid;
   grid-template-columns:repeat(7,1fr);
   gap:2px;
+  max-width:700px;
 }
 
 .cell {
@@ -31,82 +36,93 @@ body { font-family: Arial; margin:20px; }
 
 .event {
   font-size:10px;
+  background:#4dabf7;
   color:#fff;
   padding:2px;
   margin-top:2px;
   border-radius:3px;
-  cursor:pointer;
 }
 
 /* 타임트래커 */
 .tracker {
-  width:300px;
+  max-width:500px;
   border:1px solid #ddd;
-  padding:10px;
+  padding:15px;
   border-radius:8px;
 }
 
-.log {
-  font-size:12px;
-  border-bottom:1px solid #eee;
-  padding:4px 0;
+.tracker input, .tracker button {
+  width:100%;
+  padding:8px;
+  margin:5px 0;
 }
 
-button {
-  width:100%;
-  margin:4px 0;
-  padding:6px;
-  cursor:pointer;
+.log {
+  border-bottom:1px solid #eee;
+  padding:6px 0;
+  font-size:13px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="layout">
+<div class="nav">
+  <button onclick="showPage('cal')">캘린더</button>
+  <button onclick="showPage('tracker')">타임트래커</button>
+</div>
 
+<!-- ⭐ 캘린더 -->
+<div id="calPage" class="page active">
   <div class="calendar" id="cal"></div>
+</div>
 
+<!-- ⭐ 타임트래커 -->
+<div id="trackerPage" class="page">
   <div class="tracker">
 
-    <h3>타임트래커</h3>
+    <h3>타임트래커 (수기 기록)</h3>
+
+    <input id="task" placeholder="작업 이름">
+
+    <label>시작 시간</label>
+    <input id="start" type="time">
+
+    <label>종료 시간</label>
+    <input id="end" type="time">
+
+    <button onclick="addLog()">기록 추가</button>
+
+    <hr/>
 
     <div id="logList"></div>
 
   </div>
-
 </div>
 
 <script>
-/* ⭐ 캘린더 일정 */
 let events=[
-  {
-    title:"회의",
-    date:"2026-06-15",
-    start:"10:00",
-    end:"11:00",
-    color:"#ff6b6b"
-  },
-  {
-    title:"공부",
-    date:"2026-06-15",
-    start:"14:00",
-    end:"16:30",
-    color:"#4dabf7"
-  }
+  { title:"회의", date:"2026-06-15", start:"10:00", end:"11:00" },
+  { title:"공부", date:"2026-06-15", start:"14:00", end:"16:00" }
 ];
 
-/* ⭐ 타임로그 */
 let logs=[];
 
 const cal=document.getElementById("cal");
 
-/* 날짜 */
-function dateStr(d){
-  return `2026-06-${String(d).padStart(2,'0')}`;
+/* ⭐ 화면 전환 */
+function showPage(page){
+  document.getElementById("calPage").classList.remove("active");
+  document.getElementById("trackerPage").classList.remove("active");
+
+  if(page==="cal"){
+    document.getElementById("calPage").classList.add("active");
+  } else {
+    document.getElementById("trackerPage").classList.add("active");
+  }
 }
 
-/* 캘린더 */
+/* ⭐ 캘린더 */
 function render(){
   cal.innerHTML="";
 
@@ -114,23 +130,14 @@ function render(){
     const cell=document.createElement("div");
     cell.className="cell";
 
-    const ds=dateStr(d);
+    const ds=`2026-06-${String(d).padStart(2,'0')}`;
 
     cell.innerHTML=`<b>${d}</b>`;
 
     events.filter(e=>e.date===ds).forEach(ev=>{
       const div=document.createElement("div");
       div.className="event";
-      div.style.background=ev.color;
-
-      div.innerHTML=`
-        ${ev.title}<br>
-        ${ev.start} ~ ${ev.end}<br>
-        <button onclick="convert('${ev.title}','${ev.date}','${ev.start}','${ev.end}')">
-          타임트래커로 변환
-        </button>
-      `;
-
+      div.innerText=`${ev.title} ${ev.start}~${ev.end}`;
       cell.appendChild(div);
     });
 
@@ -139,29 +146,32 @@ function render(){
 }
 
 /* ⭐ 시간 계산 */
-function calcDuration(start, end){
-  let [sh, sm]=start.split(":").map(Number);
-  let [eh, em]=end.split(":").map(Number);
+function calc(start,end){
+  let [sh,sm]=start.split(":").map(Number);
+  let [eh,em]=end.split(":").map(Number);
 
-  return (eh*60+em) - (sh*60+sm);
+  return (eh*60+em)-(sh*60+sm);
 }
 
-/* ⭐ 변환 */
-function convert(title, date, start, end){
-  const duration = calcDuration(start,end);
+/* ⭐ 타임트래커 추가 */
+function addLog(){
+  const task=document.getElementById("task").value;
+  const start=document.getElementById("start").value;
+  const end=document.getElementById("end").value;
+
+  if(!task || !start || !end) return;
 
   logs.push({
-    task:title,
-    date,
+    task,
     start,
     end,
-    duration
+    duration:calc(start,end)
   });
 
   renderLogs();
 }
 
-/* ⭐ 로그 출력 */
+/* ⭐ 출력 */
 function renderLogs(){
   const box=document.getElementById("logList");
   box.innerHTML="";
@@ -175,7 +185,6 @@ function renderLogs(){
 
     div.innerHTML=`
       ${l.task}<br>
-      ${l.date}<br>
       ${l.start} ~ ${l.end}<br>
       <b>${h}시간 ${m}분</b>
     `;
