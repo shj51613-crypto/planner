@@ -3,77 +3,59 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>캘린더</title>
+<title>캘린더 + 타임트래커 변환</title>
 
 <style>
-body { font-family: Arial; margin:20px; user-select:none; }
+body { font-family: Arial; margin:20px; }
 
-.header {
+.layout {
   display:flex;
-  justify-content:space-between;
-  max-width:420px;
+  gap:20px;
+  max-width:900px;
   margin:auto;
 }
 
 .calendar {
+  flex:1;
   display:grid;
   grid-template-columns:repeat(7,1fr);
-  max-width:420px;
-  margin:auto;
   gap:2px;
-}
-
-.day-name {
-  text-align:center;
-  background:#f3f3f3;
-  padding:5px;
-  font-weight:bold;
 }
 
 .cell {
   min-height:70px;
   border:1px solid #ddd;
   padding:4px;
-  cursor:pointer;
+  font-size:12px;
 }
-
-.date { font-size:11px; font-weight:bold; }
 
 .event {
   font-size:10px;
   color:#fff;
-  margin-top:2px;
   padding:2px;
+  margin-top:2px;
   border-radius:3px;
+  cursor:pointer;
 }
 
-/* ⭐ 모달 */
-#modal {
-  display:none;
-  position:fixed;
-  top:0; left:0;
-  width:100%; height:100%;
-  background:rgba(0,0,0,0.4);
-}
-
-.modal-box {
-  background:white;
-  width:320px;
-  padding:15px;
+/* 타임트래커 */
+.tracker {
+  width:300px;
+  border:1px solid #ddd;
+  padding:10px;
   border-radius:8px;
-  margin:100px auto;
 }
 
-.modal-box input {
-  width:100%;
-  padding:6px;
-  margin-bottom:6px;
+.log {
+  font-size:12px;
+  border-bottom:1px solid #eee;
+  padding:4px 0;
 }
 
-.modal-box button {
+button {
   width:100%;
+  margin:4px 0;
   padding:6px;
-  margin-top:5px;
   cursor:pointer;
 }
 </style>
@@ -81,187 +63,129 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
 <body>
 
-<div class="header">
-  <button onclick="prev()">◀</button>
-  <h3 id="title"></h3>
-  <button onclick="next()">▶</button>
-</div>
+<div class="layout">
 
-<div class="calendar" id="cal"></div>
+  <div class="calendar" id="cal"></div>
 
-<!-- ⭐ 모달 -->
-<div id="modal">
-  <div class="modal-box">
+  <div class="tracker">
 
-    <input id="titleInput" placeholder="제목"/>
+    <h3>타임트래커</h3>
 
-    <input id="startTimeInput" type="time" placeholder="시작 시간"/>
-    <input id="endTimeInput" type="time" placeholder="종료 시간"/>
-
-    <input id="categoryInput" placeholder="카테고리"/>
-    <input id="colorInput" type="color"/>
-
-    <button onclick="save()">저장</button>
-    <button onclick="remove()">삭제</button>
-    <button onclick="closeModal()">취소</button>
+    <div id="logList"></div>
 
   </div>
+
 </div>
 
 <script>
-let y=new Date().getFullYear();
-let m=new Date().getMonth();
-
+/* ⭐ 캘린더 일정 */
 let events=[
   {
     title:"회의",
-    start:"2026-06-10",
-    end:"2026-06-10",
-    startTime:"10:00",
-    endTime:"11:00",
-    category:"일",
+    date:"2026-06-15",
+    start:"10:00",
+    end:"11:00",
     color:"#ff6b6b"
+  },
+  {
+    title:"공부",
+    date:"2026-06-15",
+    start:"14:00",
+    end:"16:30",
+    color:"#4dabf7"
   }
 ];
 
-let selected=null;
-let selectedDate=null;
+/* ⭐ 타임로그 */
+let logs=[];
 
 const cal=document.getElementById("cal");
-const title=document.getElementById("title");
 
-const modal=document.getElementById("modal");
-
-const titleInput=document.getElementById("titleInput");
-const startTimeInput=document.getElementById("startTimeInput");
-const endTimeInput=document.getElementById("endTimeInput");
-const categoryInput=document.getElementById("categoryInput");
-const colorInput=document.getElementById("colorInput");
-
+/* 날짜 */
 function dateStr(d){
-  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+  return `2026-06-${String(d).padStart(2,'0')}`;
 }
 
+/* 캘린더 */
 function render(){
   cal.innerHTML="";
 
-  const first=new Date(y,m,1).getDay();
-  const last=new Date(y,m+1,0).getDate();
-
-  title.innerText=`${y}년 ${m+1}월`;
-
-  ["일","월","화","수","목","금","토"].forEach(d=>{
-    const el=document.createElement("div");
-    el.className="day-name";
-    el.innerText=d;
-    cal.appendChild(el);
-  });
-
-  for(let i=0;i<first;i++) cal.appendChild(document.createElement("div"));
-
-  for(let d=1; d<=last; d++){
+  for(let d=1; d<=30; d++){
     const cell=document.createElement("div");
     cell.className="cell";
 
     const ds=dateStr(d);
 
-    const dateEl=document.createElement("div");
-    dateEl.className="date";
-    dateEl.innerText=d;
-    cell.appendChild(dateEl);
+    cell.innerHTML=`<b>${d}</b>`;
 
-    let dayEvents=events.filter(e=>ds>=e.start && ds<=e.end);
+    events.filter(e=>e.date===ds).forEach(ev=>{
+      const div=document.createElement("div");
+      div.className="event";
+      div.style.background=ev.color;
 
-    dayEvents.forEach(ev=>{
-      const e=document.createElement("div");
-      e.className="event";
-      e.innerText=`${ev.title} ${ev.startTime || ""}~${ev.endTime || ""}`;
-      e.style.background=ev.color;
+      div.innerHTML=`
+        ${ev.title}<br>
+        ${ev.start} ~ ${ev.end}<br>
+        <button onclick="convert('${ev.title}','${ev.date}','${ev.start}','${ev.end}')">
+          타임트래커로 변환
+        </button>
+      `;
 
-      e.onclick=(event)=>{
-        event.stopPropagation();
-        openModal(ev, ds);
-      };
-
-      cell.appendChild(e);
+      cell.appendChild(div);
     });
-
-    cell.onclick=()=>{
-      openModal(null, ds);
-    };
 
     cal.appendChild(cell);
   }
 }
 
-// ⭐ 모달 열기
-function openModal(ev, ds){
-  selected=ev;
-  selectedDate=ds;
+/* ⭐ 시간 계산 */
+function calcDuration(start, end){
+  let [sh, sm]=start.split(":").map(Number);
+  let [eh, em]=end.split(":").map(Number);
 
-  if(ev){
-    titleInput.value=ev.title;
-    startTimeInput.value=ev.startTime || "";
-    endTimeInput.value=ev.endTime || "";
-    categoryInput.value=ev.category || "";
-    colorInput.value=ev.color || "#4dabf7";
-  } else {
-    titleInput.value="";
-    startTimeInput.value="";
-    endTimeInput.value="";
-    categoryInput.value="";
-    colorInput.value="#4dabf7";
-  }
-
-  modal.style.display="block";
+  return (eh*60+em) - (sh*60+sm);
 }
 
-// ⭐ 저장
-function save(){
-  const t=titleInput.value;
-  if(!t) return;
+/* ⭐ 변환 */
+function convert(title, date, start, end){
+  const duration = calcDuration(start,end);
 
-  if(selected){
-    selected.title=t;
-    selected.startTime=startTimeInput.value;
-    selected.endTime=endTimeInput.value;
-    selected.category=categoryInput.value;
-    selected.color=colorInput.value;
-  } else {
-    events.push({
-      title:t,
-      start:selectedDate,
-      end:selectedDate,
-      startTime:startTimeInput.value,
-      endTime:endTimeInput.value,
-      category:categoryInput.value,
-      color:colorInput.value
-    });
-  }
+  logs.push({
+    task:title,
+    date,
+    start,
+    end,
+    duration
+  });
 
-  closeModal();
-  render();
+  renderLogs();
 }
 
-// ⭐ 삭제
-function remove(){
-  if(!selected) return;
+/* ⭐ 로그 출력 */
+function renderLogs(){
+  const box=document.getElementById("logList");
+  box.innerHTML="";
 
-  events=events.filter(e=>e!==selected);
-  closeModal();
-  render();
+  logs.slice().reverse().forEach(l=>{
+    const div=document.createElement("div");
+    div.className="log";
+
+    const h=Math.floor(l.duration/60);
+    const m=l.duration%60;
+
+    div.innerHTML=`
+      ${l.task}<br>
+      ${l.date}<br>
+      ${l.start} ~ ${l.end}<br>
+      <b>${h}시간 ${m}분</b>
+    `;
+
+    box.appendChild(div);
+  });
 }
-
-function closeModal(){
-  modal.style.display="none";
-  selected=null;
-  selectedDate=null;
-}
-
-function prev(){ m--; if(m<0){m=11;y--;} render(); }
-function next(){ m++; if(m>11){m=0;y++;} render(); }
 
 render();
+renderLogs();
 </script>
 
 </body>
