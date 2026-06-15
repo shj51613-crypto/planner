@@ -58,16 +58,16 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
 .modal-box {
   background:white;
-  width:300px;
+  width:320px;
   padding:15px;
   border-radius:8px;
-  margin:120px auto;
+  margin:100px auto;
 }
 
-.modal-box input, .modal-box select {
+.modal-box input {
   width:100%;
   padding:6px;
-  margin-bottom:8px;
+  margin-bottom:6px;
 }
 
 .modal-box button {
@@ -75,13 +75,6 @@ body { font-family: Arial; margin:20px; user-select:none; }
   padding:6px;
   margin-top:5px;
   cursor:pointer;
-}
-
-.color-box {
-  display:flex;
-  align-items:center;
-  gap:8px;
-  margin-bottom:8px;
 }
 </style>
 </head>
@@ -102,12 +95,11 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
     <input id="titleInput" placeholder="제목"/>
 
-    <div class="color-box">
-      <span>카테고리 색</span>
-      <input type="color" id="colorInput" />
-    </div>
+    <input id="startTimeInput" type="time" placeholder="시작 시간"/>
+    <input id="endTimeInput" type="time" placeholder="종료 시간"/>
 
-    <input id="categoryInput" placeholder="카테고리 (예: 운동)"/>
+    <input id="categoryInput" placeholder="카테고리"/>
+    <input id="colorInput" type="color"/>
 
     <button onclick="save()">저장</button>
     <button onclick="remove()">삭제</button>
@@ -121,7 +113,15 @@ let y=new Date().getFullYear();
 let m=new Date().getMonth();
 
 let events=[
-  { title:"회의", start:"2026-06-10", end:"2026-06-10", category:"일", color:"#ff6b6b" }
+  {
+    title:"회의",
+    start:"2026-06-10",
+    end:"2026-06-10",
+    startTime:"10:00",
+    endTime:"11:00",
+    category:"일",
+    color:"#ff6b6b"
+  }
 ];
 
 let selected=null;
@@ -131,7 +131,10 @@ const cal=document.getElementById("cal");
 const title=document.getElementById("title");
 
 const modal=document.getElementById("modal");
+
 const titleInput=document.getElementById("titleInput");
+const startTimeInput=document.getElementById("startTimeInput");
+const endTimeInput=document.getElementById("endTimeInput");
 const categoryInput=document.getElementById("categoryInput");
 const colorInput=document.getElementById("colorInput");
 
@@ -172,7 +175,7 @@ function render(){
     dayEvents.forEach(ev=>{
       const e=document.createElement("div");
       e.className="event";
-      e.innerText=`${ev.title} (${ev.category})`;
+      e.innerText=`${ev.title} ${ev.startTime || ""}~${ev.endTime || ""}`;
       e.style.background=ev.color;
 
       e.onclick=(event)=>{
@@ -198,10 +201,14 @@ function openModal(ev, ds){
 
   if(ev){
     titleInput.value=ev.title;
-    categoryInput.value=ev.category;
-    colorInput.value=ev.color;
+    startTimeInput.value=ev.startTime || "";
+    endTimeInput.value=ev.endTime || "";
+    categoryInput.value=ev.category || "";
+    colorInput.value=ev.color || "#4dabf7";
   } else {
     titleInput.value="";
+    startTimeInput.value="";
+    endTimeInput.value="";
     categoryInput.value="";
     colorInput.value="#4dabf7";
   }
@@ -212,22 +219,23 @@ function openModal(ev, ds){
 // ⭐ 저장
 function save(){
   const t=titleInput.value;
-  const c=categoryInput.value;
-  const col=colorInput.value;
-
   if(!t) return;
 
   if(selected){
     selected.title=t;
-    selected.category=c;
-    selected.color=col;
+    selected.startTime=startTimeInput.value;
+    selected.endTime=endTimeInput.value;
+    selected.category=categoryInput.value;
+    selected.color=colorInput.value;
   } else {
     events.push({
       title:t,
       start:selectedDate,
       end:selectedDate,
-      category:c,
-      color:col
+      startTime:startTimeInput.value,
+      endTime:endTimeInput.value,
+      category:categoryInput.value,
+      color:colorInput.value
     });
   }
 
