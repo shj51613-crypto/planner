@@ -50,7 +50,35 @@ body { font-family: Arial; margin:20px; user-select:none; }
 .sun .date { color:red; }
 .sat .date { color:blue; }
 
-.selected { background:#d0ebff !important; }
+/* ⭐ 모달 */
+#modal {
+  display:none;
+  position:fixed;
+  top:0; left:0;
+  width:100%; height:100%;
+  background:rgba(0,0,0,0.4);
+}
+
+.modal-box {
+  background:white;
+  width:260px;
+  padding:15px;
+  border-radius:8px;
+  margin:120px auto;
+}
+
+.modal-box input {
+  width:100%;
+  padding:6px;
+  margin-bottom:10px;
+}
+
+.modal-box button {
+  width:100%;
+  padding:6px;
+  margin-top:5px;
+  cursor:pointer;
+}
 </style>
 </head>
 
@@ -64,6 +92,16 @@ body { font-family: Arial; margin:20px; user-select:none; }
 
 <div class="calendar" id="cal"></div>
 
+<!-- ⭐ 수정 모달 -->
+<div id="modal">
+  <div class="modal-box">
+    <input id="editTitle" />
+    <button onclick="saveEdit()">저장</button>
+    <button onclick="deleteEvent()">삭제</button>
+    <button onclick="closeModal()">취소</button>
+  </div>
+</div>
+
 <script>
 let y=new Date().getFullYear();
 let m=new Date().getMonth();
@@ -72,15 +110,16 @@ let events=[
   { title:"회의", start:"2026-06-10", end:"2026-06-10", color:"#ff6b6b" }
 ];
 
-let dragStart=null;
-let dragEnd=null;
-let isDragging=false;
+let selectedEvent=null;
 
 const cal=document.getElementById("cal");
 const title=document.getElementById("title");
 
-function dateStr(day){
-  return `${y}-${String(m+1).padStart(2,'0')}-${String(day).padStart(2,'0')}`;
+const modal=document.getElementById("modal");
+const editTitle=document.getElementById("editTitle");
+
+function dateStr(d){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
 }
 
 function render(){
@@ -104,10 +143,6 @@ function render(){
     const cell=document.createElement("div");
     cell.className="cell";
 
-    const weekday=new Date(y,m,d).getDay();
-    if(weekday===0) cell.classList.add("sun");
-    if(weekday===6) cell.classList.add("sat");
-
     const ds=dateStr(d);
 
     const dateEl=document.createElement("div");
@@ -117,31 +152,22 @@ function render(){
 
     let dayEvents=events.filter(e=>ds>=e.start && ds<=e.end);
 
-    if(dayEvents.length===1 && dayEvents[0].start===dayEvents[0].end){
-      cell.classList.add("single-day");
-    }
-
     dayEvents.forEach(ev=>{
       const e=document.createElement("div");
       e.className="event";
       e.innerText=ev.title;
       e.style.background=ev.color;
 
-      // ⭐ 삭제 기능 (핵심)
+      // ⭐ 수정 모달 열기
       e.onclick=(event)=>{
-        event.stopPropagation(); // cell 클릭 막기
-
-        const ok=confirm(`"${ev.title}" 삭제할까?`);
-        if(!ok) return;
-
-        events=events.filter(x=>x!==ev);
-        render();
+        event.stopPropagation();
+        openModal(ev);
       };
 
       cell.appendChild(e);
     });
 
-    // ⭐ 클릭 추가
+    // ⭐ 클릭 = 일정 추가
     cell.onclick=()=>{
       const t=prompt(`${ds} 일정 추가`);
       if(!t) return;
@@ -158,6 +184,36 @@ function render(){
 
     cal.appendChild(cell);
   }
+}
+
+// ⭐ 모달 열기
+function openModal(ev){
+  selectedEvent=ev;
+  editTitle.value=ev.title;
+  modal.style.display="block";
+}
+
+// ⭐ 저장
+function saveEdit(){
+  if(!selectedEvent) return;
+
+  selectedEvent.title=editTitle.value;
+  closeModal();
+  render();
+}
+
+// ⭐ 삭제
+function deleteEvent(){
+  events=events.filter(e=>e!==selectedEvent);
+  selectedEvent=null;
+  closeModal();
+  render();
+}
+
+// ⭐ 닫기
+function closeModal(){
+  modal.style.display="none";
+  selectedEvent=null;
 }
 
 function prev(){ m--; if(m<0){m=11;y--;} render(); }
