@@ -3,32 +3,44 @@
 <head>
 <meta charset="UTF-8" />
 <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-<title>캘린더 (추가/수정/삭제 복구)</title>
+<title>캘린더 복구</title>
 
 <style>
-body { font-family: Arial; margin:20px; }
+body { font-family: Arial; margin:20px; user-select:none; }
 
-.nav { display:flex; gap:10px; margin-bottom:10px; }
-
-button { cursor:pointer; padding:6px; }
-
-.page { display:none; }
-.active { display:block; }
+/* 기존 느낌 유지 */
+.header {
+  display:flex;
+  justify-content:space-between;
+  max-width:420px;
+  margin:auto;
+}
 
 .calendar {
   display:grid;
   grid-template-columns:repeat(7,1fr);
+  max-width:420px;
+  margin:auto;
   gap:2px;
-  max-width:700px;
+}
+
+.day-name {
+  text-align:center;
+  background:#f3f3f3;
+  padding:5px;
+  font-weight:bold;
+  font-size:12px;
 }
 
 .cell {
-  min-height:80px;
+  min-height:70px;
   border:1px solid #ddd;
   padding:4px;
-  font-size:12px;
   cursor:pointer;
+  font-size:11px;
 }
+
+.date { font-weight:bold; font-size:11px; }
 
 .event {
   font-size:10px;
@@ -38,7 +50,7 @@ button { cursor:pointer; padding:6px; }
   border-radius:3px;
 }
 
-/* 모달 */
+/* 모달 (원래 단순 스타일) */
 #modal {
   display:none;
   position:fixed;
@@ -48,32 +60,189 @@ button { cursor:pointer; padding:6px; }
 }
 
 .modal-box {
-  background:#fff;
+  background:white;
   width:300px;
   margin:120px auto;
-  padding:15px;
-  border-radius:8px;
+  padding:12px;
+  border-radius:6px;
 }
 
 .modal-box input {
   width:100%;
   padding:6px;
-  margin:5px 0;
+  margin:4px 0;
+}
+
+.modal-box button {
+  width:100%;
+  padding:6px;
+  margin-top:5px;
 }
 </style>
 </head>
 
 <body>
 
-<div class="nav">
-  <button onclick="showPage('cal')">캘린더</button>
-  <button onclick="showPage('tracker')">타임트래커</button>
+<div class="header">
+  <button onclick="prev()">◀</button>
+  <h3 id="title"></h3>
+  <button onclick="next()">▶</button>
 </div>
 
-<!-- 캘린더 -->
-<div id="calPage" class="page active">
-  <div class="calendar" id="cal"></div>
+<div class="calendar" id="cal"></div>
+
+<!-- ⭐ 모달 -->
+<div id="modal">
+  <div class="modal-box">
+
+    <input id="titleInput" placeholder="제목"/>
+    <input type="time" id="startInput"/>
+    <input type="time" id="endInput"/>
+    <input type="color" id="colorInput"/>
+
+    <button onclick="save()">저장</button>
+    <button onclick="remove()">삭제</button>
+    <button onclick="closeModal()">취소</button>
+
+  </div>
 </div>
 
-<!-- 타임트래커 -->
-<div id="trackerPage" class="page">
+<script>
+let y=new Date().getFullYear();
+let m=new Date().getMonth();
+
+let events=[];
+
+let selected=null;
+let selectedDate=null;
+
+const cal=document.getElementById("cal");
+
+const modal=document.getElementById("modal");
+
+const titleInput=document.getElementById("titleInput");
+const startInput=document.getElementById("startInput");
+const endInput=document.getElementById("endInput");
+const colorInput=document.getElementById("colorInput");
+
+function dateStr(d){
+  return `${y}-${String(m+1).padStart(2,'0')}-${String(d).padStart(2,'0')}`;
+}
+
+/* ⭐ 렌더 */
+function render(){
+  cal.innerHTML="";
+
+  const first=new Date(y,m,1).getDay();
+  const last=new Date(y,m+1,0).getDate();
+
+  document.getElementById("title").innerText = `${y}년 ${m+1}월`;
+
+  ["일","월","화","수","목","금","토"].forEach(d=>{
+    const el=document.createElement("div");
+    el.className="day-name";
+    el.innerText=d;
+    cal.appendChild(el);
+  });
+
+  for(let i=0;i<first;i++) cal.appendChild(document.createElement("div"));
+
+  for(let d=1; d<=last; d++){
+    const cell=document.createElement("div");
+    cell.className="cell";
+
+    const ds=dateStr(d);
+
+    const dateEl=document.createElement("div");
+    dateEl.className="date";
+    dateEl.innerText=d;
+    cell.appendChild(dateEl);
+
+    events.filter(e=>e.date===ds).forEach(ev=>{
+      const div=document.createElement("div");
+      div.className="event";
+      div.style.background=ev.color;
+
+      div.innerText=`${ev.title} ${ev.start||""}`;
+
+      div.onclick=(e)=>{
+        e.stopPropagation();
+        openModal(ev, ds);
+      };
+
+      cell.appendChild(div);
+    });
+
+    cell.onclick=()=>openModal(null, ds);
+
+    cal.appendChild(cell);
+  }
+}
+
+/* ⭐ 모달 열기 */
+function openModal(ev, ds){
+  selected=ev;
+  selectedDate=ds;
+
+  if(ev){
+    titleInput.value=ev.title;
+    startInput.value=ev.start||"";
+    endInput.value=ev.end||"";
+    colorInput.value=ev.color||"#4dabf7";
+  } else {
+    titleInput.value="";
+    startInput.value="";
+    endInput.value="";
+    colorInput.value="#4dabf7";
+  }
+
+  modal.style.display="block";
+}
+
+/* ⭐ 저장 */
+function save(){
+  const t=titleInput.value;
+  if(!t) return;
+
+  if(selected){
+    selected.title=t;
+    selected.start=startInput.value;
+    selected.end=endInput.value;
+    selected.color=colorInput.value;
+  } else {
+    events.push({
+      title:t,
+      date:selectedDate,
+      start:startInput.value,
+      end:endInput.value,
+      color:colorInput.value
+    });
+  }
+
+  closeModal();
+  render();
+}
+
+/* ⭐ 삭제 */
+function remove(){
+  if(!selected) return;
+  events=events.filter(e=>e!==selected);
+  closeModal();
+  render();
+}
+
+function closeModal(){
+  modal.style.display="none";
+  selected=null;
+  selectedDate=null;
+}
+
+/* 월 이동 */
+function prev(){ m--; if(m<0){m=11;y--;} render(); }
+function next(){ m++; if(m>11){m=0;y++;} render(); }
+
+render();
+</script>
+
+</body>
+</html>
